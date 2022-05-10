@@ -1,0 +1,32 @@
+<?xml version = "1.0" encoding = "UTF-8"?>
+
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+
+    <!-- environments tag - you can connect to multiple databases -->
+    <!-- Aplinkos zymoje nustatomi duomenys i koki DB jungsimes -->
+    <environments default = "development">
+        <environment id = "development">
+            <!-- transactionManager types: JDBC/MANAGED -->
+            <!-- JDBC - transaction management operations; to perform operations like commit (CRUD) -->
+            <!-- MANAGED - to manage the connection life cycle -->
+            <transactionManager type = "JDBC"/>
+
+            <!-- dataSource - used to configure the connection properties of DB (username, password) -->
+            <!-- dataSource types: UNPOOLED, POOLED, JNDI -->
+            <dataSource type = "POOLED">
+                <property name = "driver" value = "com.mysql.jdbc.Driver"/>
+                <property name = "url" value = "jdbc:mysql://localhost:3306/metakocka"/>
+                <property name = "username" value = "root"/>
+                <property name = "password" value = ""/>
+            </dataSource>
+
+        </environment>
+    </environments>
+
+    <mappers>
+        <!-- resource/url/name -->
+        <mapper resource = "AddressRule.xml"/>
+    </mappers>
+
+</configuration>
