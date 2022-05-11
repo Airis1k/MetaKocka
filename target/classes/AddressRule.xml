@@ -5,17 +5,25 @@
 <mapper namespace = "AddressRule">
 
     <delete id="delete" parameterType="com.metakocka.AddressRule">
-        DELETE FROM address_rules WHERE validation_type = 'delivery_service_post_cz';
+        DELETE FROM address_rules WHERE validation_type = #{validation_type};
     </delete>
 
     <!-- parameterTypes: String, int, float, double, any class object -->
     <insert id = "insert" parameterType = "com.metakocka.AddressRule">
-        INSERT INTO address_rules (id, province, city, street, post_number, validation_type, street_prefix, additional_rule) VALUES (0, null, #{city}, null, #{post_number}, 'delivery_service_post_cz', null, 0);
+        INSERT INTO address_rules (id, province, city, street, post_number, validation_type, street_prefix, additional_rule) VALUES (0, null, #{city}, null, #{post_number}, #{validation_type}, null, 0);
 
 <!--        <selectKey keyProperty = "id" resultType = "int" order = "AFTER">-->
 <!--            select last_insert_id() as id-->
 <!--        </selectKey>-->
 
+    </insert>
+
+    <delete id="deleteHr">
+        DELETE FROM address_rules WHERE validation_type = 'delivery_service_post_hr';
+    </delete>
+
+    <insert id="insertHr">
+        INSERT INTO address_rules (id, province, city, street, post_number, validation_type, street_prefix, additional_rule) VALUES (0, null, #{post_number}, null, #{city}, 'delivery_service_post_hr', null, 0);
     </insert>
 
 </mapper>

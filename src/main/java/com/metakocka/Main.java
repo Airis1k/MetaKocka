@@ -1,6 +1,7 @@
 package com.metakocka;
 
 import com.linuxense.javadbf.*;
+import com.mysql.cj.protocol.a.ByteArrayValueEncoder;
 import org.apache.ibatis.io.Resources;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -8,12 +9,17 @@ import org.apache.ibatis.session.SqlSessionFactoryBuilder;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
 
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
-import java.net.Authenticator;
-import java.net.PasswordAuthentication;
-import java.net.URL;
-import java.net.URLConnection;
+import java.net.*;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -34,35 +40,43 @@ public class Main {
 
         String[] fileNames = new String[]{"zv_pscad.zip", "zv_pscob.zip", "zv_pscor.zip", "zv_pscpo.zip", "zv_pscu1.zip"};
 
-        // downloads to memory, extracts from memory and saves .tsv files in disk
+        // assignment 1
+        List<AddressRule> filteredList = filteringRecord(postCz(fileNames, urlAndFolder, outputPath));
+        AddressRule addressRuleValidation = new AddressRule();
+        addressRuleValidation.setValidation_type("delivery_service_post_cz");
+        connectAndInsertToDatabase(filteredList, addressRuleValidation);
 
-        // TODO init merger list
-        List<AddressRule> addressRuleMerged = new ArrayList<>();
+        // assignment 2
+        String url2 = "https://www.posta.hr/mjestaRh.aspx?vrsta=xml";
 
+        List<AddressRule> filteredList2 = filteringRecord(postHr(url2));
+        AddressRule addressRuleValidation2 = new AddressRule();
+        addressRuleValidation2.setValidation_type("delivery_service_post_hr");
+        connectAndInsertToDatabase(filteredList2, addressRuleValidation2);
+    }
+
+    public static List<AddressRule> postHr(String url2) {
+        List<AddressRule> list = downloadAndParseXml(url2);
+        return list;
+    }
+
+    public static List<AddressRule> postCz(String[] fileNames, String urlAndFolder, String outputPath) throws IOException {
+        List<AddressRule> list = new ArrayList<>();
         for (String fileName : fileNames) {
             System.out.println(fileName);
             ByteArrayInputStream bais = downloadFileToMemory(urlAndFolder, fileName);
             // choose only readDbfFile or downloadAndParseOneFile method
 //            readDbfFile(bais, fileName);
-            addressRuleMerged.addAll(downloadAndParseOneFile(outputPath, bais, fileName));
+            list.addAll(downloadAndParseOneFile(outputPath, bais, fileName));
         }
 
-        // TODO filtering
-        List<AddressRule> listedAddressRuleUnique = new ArrayList<AddressRule>();
-        Set<String> keySet = new HashSet<>();
-        for (AddressRule ae : addressRuleMerged) {
-            String key = ae.getCity() + "#" + ae.getPost_number();
-            if (keySet.contains(key)) {
-                continue;
-            }
-            listedAddressRuleUnique.add(ae);
-            keySet.add(key);
-        }
+        return list;
+    }
 
-        // TODO writing to disk
-        FileOutputStream fs = new FileOutputStream("C:\\Users\\Airis\\darbo_failai\\address-rule\\files.tsv");
+    public static void writingToDisk(String outputPath, String file, List<AddressRule> filteredList) throws IOException {
+        FileOutputStream fs = new FileOutputStream(outputPath + file);
         fs.write("NAZOBCE\tPSC".getBytes());
-        for (AddressRule ae : listedAddressRuleUnique) {
+        for (AddressRule ae : filteredList) {
             if (ae.getPost_number() != null && ae.getCity() != null && !ae.getPost_number().trim().equals("") && !ae.getCity().trim().equals("")) {     // trim() - pasalina space'us ir simbolius
                 fs.write("\n".getBytes());
                 fs.write(ae.getCity().getBytes());
@@ -70,27 +84,84 @@ public class Main {
                 fs.write(ae.getPost_number().getBytes());
             }
         }
+    }
 
+    public static void connectAndInsertToDatabase(List<AddressRule> filteredList, AddressRule addressRuleValidation) throws IOException {
         // Connection to DB
         Reader reader = Resources.getResourceAsReader("SqlMapConfig.xml");
         SqlSessionFactory sqlSessionFactory = new SqlSessionFactoryBuilder().build(reader);
         SqlSession session = sqlSessionFactory.openSession();
 
-        // Object
-        session.delete("AddressRule.delete");
-        System.out.println("Records deleted successfully!");
-        for (AddressRule list : listedAddressRuleUnique) {
+        session.delete("AddressRule.delete", addressRuleValidation.getValidation_type());
+        System.out.println("Records has been deleted successfully!");
+        for (AddressRule list : filteredList) {
             if (list.getPost_number() != null && list.getCity() != null && !list.getPost_number().trim().equals("") && !list.getCity().trim().equals("")) {
-                AddressRule addressRule = new AddressRule(null, "Region", list.getCity(), "Kauno g.", list.getPost_number(), "validation_type", "prefix", false, false);
+                AddressRule addressRule = new AddressRule(null, "province", list.getCity(), "street st.", list.getPost_number(), addressRuleValidation.getValidation_type(), "prefix", false, false);
 
-                // Insert student data
+                // Insert data
                 session.insert("AddressRule.insert", addressRule);
-                System.out.println("Record inserted successfully!");
+                System.out.println("Record has been inserted successfully!");
                 session.commit();
             }
         }
 
         session.close();
+    }
+
+    public static List<AddressRule> filteringRecord(List<AddressRule> list) {
+        // filtering
+        List<AddressRule> filteredList = new ArrayList<AddressRule>();
+        Set<String> keySet = new HashSet<>();
+        for (AddressRule ae : list) {
+            String key = ae.getPost_number() + "#" + ae.getCity();
+            if (keySet.contains(key)) {
+                continue;
+            }
+            filteredList.add(ae);
+            keySet.add(key);
+        }
+
+        return filteredList;
+    }
+
+    public static List<AddressRule> downloadAndParseXml(String url2) {
+        InputStream inputStream = null;
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        List<AddressRule> listAddressRule = new ArrayList<>();
+
+        try {
+            URL url = new URL(url2);
+            URLConnection urlConnection = url.openConnection();
+            inputStream = urlConnection.getInputStream();
+
+            dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+
+            DocumentBuilder db = dbf.newDocumentBuilder();
+            org.w3c.dom.Document doc = db.parse(inputStream);
+            doc.getDocumentElement().normalize();
+
+            NodeList list = doc.getElementsByTagName("mjesto");
+            for (int temp = 0; temp < list.getLength(); temp++) {
+                Node node = list.item(temp);
+                if (node.getNodeType() == Node.ELEMENT_NODE) {
+                    Element element = (Element) node;
+                    AddressRule addressRule = new AddressRule();
+                    addressRule.setPost_number(element.getElementsByTagName("brojPu").item(0).getTextContent());
+                    addressRule.setCity(element.getElementsByTagName("naselje").item(0).getTextContent());
+                    listAddressRule.add(addressRule);
+                }
+            }
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (ParserConfigurationException e) {
+            e.printStackTrace();
+        } catch (SAXException e) {
+            e.printStackTrace();
+        }
+
+        return listAddressRule;
     }
 
     public static ByteArrayInputStream downloadFileToMemory(String urlAndFolder, String fileName) throws IOException {
