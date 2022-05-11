@@ -1,7 +1,6 @@
 package com.metakocka;
 
 import com.linuxense.javadbf.*;
-import com.mysql.cj.protocol.a.ByteArrayValueEncoder;
 import org.apache.ibatis.io.Resources;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
@@ -20,10 +19,9 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
 import java.net.*;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -40,19 +38,34 @@ public class Main {
 
         String[] fileNames = new String[]{"zv_pscad.zip", "zv_pscob.zip", "zv_pscor.zip", "zv_pscpo.zip", "zv_pscu1.zip"};
 
-        // assignment 1
-        List<AddressRule> filteredList = filteringRecord(postCz(fileNames, urlAndFolder, outputPath));
-        AddressRule addressRuleValidation = new AddressRule();
-        addressRuleValidation.setValidation_type("delivery_service_post_cz");
-        connectAndInsertToDatabase(filteredList, addressRuleValidation);
+//        // assignment 1
+//        List<AddressRule> filteredList = filteringRecord(postCz(fileNames, urlAndFolder, outputPath));
+//        AddressRule addressRuleValidation = new AddressRule();
+//        addressRuleValidation.setValidation_type("delivery_service_post_cz");
+//        connectAndInsertToDatabase(filteredList, addressRuleValidation);
+//
+//        // assignment 2
+//        String url2 = "https://www.posta.hr/mjestaRh.aspx?vrsta=xml";
+//
+//        List<AddressRule> filteredList2 = filteringRecord(postHr(url2));
+//        AddressRule addressRuleValidation2 = new AddressRule();
+//        addressRuleValidation2.setValidation_type("delivery_service_post_hr");
+//        connectAndInsertToDatabase(filteredList2, addressRuleValidation2);
 
-        // assignment 2
-        String url2 = "https://www.posta.hr/mjestaRh.aspx?vrsta=xml";
+        // assignment 3
+        String masterPath = "C:\\Users\\Airis\\darbo_failai\\scheme_prod.txt";
+        String childPath1 = "C:\\Users\\Airis\\darbo_failai\\scheme_2digit.txt";
+        String childPath2 = "C:\\Users\\Airis\\darbo_failai\\scheme_uvecto.txt";
 
-        List<AddressRule> filteredList2 = filteringRecord(postHr(url2));
-        AddressRule addressRuleValidation2 = new AddressRule();
-        addressRuleValidation2.setValidation_type("delivery_service_post_hr");
-        connectAndInsertToDatabase(filteredList2, addressRuleValidation2);
+        ArrayList<String> records1 = readTextFile(masterPath);
+        ArrayList<String> records2 = readTextFile(childPath1);
+        ArrayList<String> records3 = readTextFile(childPath2);
+
+        ArrayList<String> filteredList = checkIfMissing(records1, records2, records3);
+        for (String list : filteredList) {
+            System.out.println(list);
+            System.out.println("");
+        }
     }
 
     public static List<AddressRule> postHr(String url2) {
@@ -379,5 +392,32 @@ public class Main {
         } finally {
             DBFUtils.close(reader);
         }
+    }
+
+    public static ArrayList<String> readTextFile(String inputPath) throws IOException {
+        Path fileName = Path.of(inputPath);
+        FileReader fileReader = new FileReader(String.valueOf(fileName));
+        BufferedReader bufferedReader = new BufferedReader(fileReader);
+
+        ArrayList<String> arrayList = new ArrayList<>();
+
+        String line;
+        while ((line = bufferedReader.readLine()) != null) {
+            arrayList.add(line);
+        }
+
+        fileReader.close();
+
+        return arrayList;
+    }
+
+    private static ArrayList<String> checkIfMissing(ArrayList<String> list1, ArrayList<String> list2, ArrayList<String> list3) {
+        ArrayList<String> filteredList = new ArrayList<>();
+
+        list1.removeAll(list2);
+        list1.removeAll(list3);
+        filteredList.addAll(list1);
+
+        return filteredList;
     }
 }
