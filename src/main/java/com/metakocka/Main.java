@@ -61,11 +61,9 @@ public class Main {
         ArrayList<String> records2 = readTextFile(childPath1);
         ArrayList<String> records3 = readTextFile(childPath2);
 
-        ArrayList<String> filteredList = checkIfMissing(records1, records2, records3);
-        for (String list : filteredList) {
-            System.out.println(list);
-            System.out.println("");
-        }
+//        checkIfMissing(records1, records2, records3);
+
+//        ignoreTableByName(records1, records2, records3);
     }
 
     public static List<AddressRule> postHr(String url2) {
@@ -411,13 +409,48 @@ public class Main {
         return arrayList;
     }
 
-    private static ArrayList<String> checkIfMissing(ArrayList<String> list1, ArrayList<String> list2, ArrayList<String> list3) {
+    private static ArrayList<String> checkIfMissing(ArrayList<String> list1, ArrayList<String> list2, ArrayList<String> list3) throws IOException {
         ArrayList<String> filteredList = new ArrayList<>();
 
         list1.removeAll(list2);
         list1.removeAll(list3);
         filteredList.addAll(list1);
 
+        FileWriter writer = new FileWriter("C:\\Users\\Airis\\darbo_failai\\missing_records.txt");
+
+        for (String list : filteredList) {
+            System.out.println(list);
+            System.out.println("");
+//            writer.write(list + System.lineSeparator());
+        }
+        writer.close();
+
         return filteredList;
+    }
+
+    private static void ignoreTableByName(ArrayList<String> list1, ArrayList<String> list2, ArrayList<String> list3) throws IOException {
+        list1.addAll(list2);
+        list1.addAll(list3);
+
+        String[] ruleList = {"bill_change_log", "command_exec_time", "wo_products_view", "wouporaba", "tiskarji_stroji", "tiskovine_pps", "tiskarji_dodelave", "sklopi_pps", "mravlja_c569_current_activity", "temp_"};
+
+        ArrayList<String> removeList = new ArrayList<>();
+        for (String list : list1) {
+            for (int i = 0; i < ruleList.length; i++) {
+                if (list.startsWith(ruleList[i])) {
+                    removeList.add(list);
+                }
+            }
+        }
+
+        list1.removeAll(removeList);
+        FileWriter writer = new FileWriter("C:\\Users\\Airis\\darbo_failai\\filteredRecords.txt");
+
+        for (String filteredList : list1) {
+            System.out.println(filteredList);
+            System.out.println("");
+//            writer.write(filteredList + System.lineSeparator());
+        }
+        writer.close();
     }
 }
